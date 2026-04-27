@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
-
+import axios from "axios";
+import { cache } from "react";
 const config = {
   Option: {
     port: { type: "string", short: "p" },
@@ -28,3 +29,33 @@ if (origin == null) {
   console.log(msg, example);
   process.exit(1);
 }
+
+async function fetchData(url) {
+  if (cache.has(url)) {
+    const cachedData = cache.get(url);
+    return {
+      ...cachedData,
+      headers: {
+        ...cachedData.headers,
+        "x-cache": "HIT",
+      },
+    };
+  }
+
+  try {
+    const response = axios.fetch(origin);
+    const responseData = {
+      data: response.data,
+      headers: response.headers,
+    };
+    const cacheData = cache.set(origin, responseData);
+    return {
+      ...responseData,
+      headers: { ...responseData.headers, "x-cache": "miss" },
+    };
+  } catch (error) {
+    console.error("fetch error", error.message);
+    throw error;
+  }
+}
+fetchData();
