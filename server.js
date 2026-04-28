@@ -1,3 +1,4 @@
+import express from "express";
 import { parseArgs } from "node:util";
 import axios from "axios";
 const config = {
@@ -8,14 +9,17 @@ const config = {
   },
   allowPositionals: true,
 };
-const { values, positionals } = parseArgs(config);
+const { values } = parseArgs(config);
 
-let cache = new Map();
 const port = values.port ? parseInt(values.port, 10) : 3000;
 const origin = values.origin;
 const clearCache = values["clear-cache"] || false;
+const app = express();
+
 const msg = "please provide args in the format below";
 const example = "--port 3000 --origin <your-url>";
+
+let cache = new Map();
 
 if (clearCache) {
   cache.clear();
@@ -23,6 +27,7 @@ if (clearCache) {
   console.log(msg);
   process.exit(0);
 }
+
 if (isNaN(port) || port < 0 || port > 65535) {
   console.log("Invalid port number");
   console.log("....................");
@@ -37,32 +42,27 @@ if (origin == null) {
   process.exit(1);
 }
 
-async function fetchData(url) {
+//start server
+app.use(async (req, res) => {
+  const url = `${origin}${req.url}`;
   if (cache.has(url)) {
-    const cachedData = cache.get(url);
-    return {
-      ...cachedData,
-      headers: {
-        ...cachedData.headers,
-        "x-cache": "HIT",
-      },
-    };
+    res.set("x-cache:", "hit");
+    return res.send(cache.get(url));
   }
 
   try {
-    const response = axios.fetch(origin);
-    const responseData = {
-      data: response.data,
-      headers: response.headers,
-    };
-    const cacheData = cache.set(origin, responseData);
-    return {
-      ...responseData,
-      headers: { ...responseData.headers, "x-cache": "miss" },
-    };
+    const response = await axios.get(url);
+    cache.set(url, response.data);
+    res.set("X-Cache", "MISS");
+    res.send(response.data);
   } catch (error) {
-    console.error("fetch error", error.message);
-    throw error;
+    console.error("err:", error);
+    return res.status(500).send("error forwarding request");
   }
-}
-fetchData();
+});
+
+app.listen(port, () => {
+  console.log(
+    `caching proxy listening on port:${port}, forwarding to ${origin}`,
+  );
+});
