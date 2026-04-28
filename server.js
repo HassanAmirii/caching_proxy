@@ -1,21 +1,28 @@
 import { parseArgs } from "node:util";
 import axios from "axios";
-import { cache } from "react";
 const config = {
-  Option: {
+  options: {
     port: { type: "string", short: "p" },
     origin: { type: "string", short: "o" },
+    "clear-cache": { type: "boolean" },
   },
   allowPositionals: true,
 };
 const { values, positionals } = parseArgs(config);
 
+let cache = new Map();
 const port = values.port ? parseInt(values.port, 10) : 3000;
 const origin = values.origin;
-
+const clearCache = values["clear-cache"] || false;
 const msg = "please provide args in the format below";
 const example = "--port 3000 --origin <your-url>";
 
+if (clearCache) {
+  cache.clear();
+  const msg = "all cached data are now cleared";
+  console.log(msg);
+  process.exit(0);
+}
 if (isNaN(port) || port < 0 || port > 65535) {
   console.log("Invalid port number");
   console.log("....................");
