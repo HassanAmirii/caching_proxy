@@ -46,14 +46,17 @@ if (origin == null) {
 app.use(async (req, res) => {
   const url = `${origin}${req.url}`;
   if (cache.has(url)) {
-    res.set("x-cache:", "hit");
+    res.set("x-cache", "HIT");
     return res.send(cache.get(url));
   }
 
   try {
     const response = await axios.get(url);
+    const contentType = response.headers["content-type"];
+    res.set("content-type", contentType);
+    res.set("x-cache", "MISS");
+
     cache.set(url, response.data);
-    res.set("X-Cache", "MISS");
     res.send(response.data);
   } catch (error) {
     console.error("err:", error);
